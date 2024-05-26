@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Cambridge, MA 02110-1301, USA
 #include <QCompleter>
 #include <QIcon>
 #include <QLineEdit>
+#include <QLabel>
 #include <QPainter>
 #include <QPainterPath>
 #include <QTimer>
@@ -223,6 +224,61 @@ void TagFilterWidget::updateTagSetFilter()
 }
 #endif
 
+SizeFilterWidget::SizeFilterWidget(SortedDirModel *model)
+{
+    mFilter = new SizeFilter(model);
+
+    mModeComboBox = new KComboBox;
+    mModeComboBox->addItem(i18n("Both >="), SizeFilter::GreaterOrEqual);
+    mModeComboBox->addItem(i18n("Both ="), SizeFilter::Equal);
+    mModeComboBox->addItem(i18n("Both <="), SizeFilter::LessOrEqual);
+
+
+    mLineEditHeight = new  QLineEdit;
+    mLineEditWidth =  new QLineEdit;
+
+    mLabelHeight = new QLabel;
+    mLabelHeight->setText(i18n("Height"));
+    mLabelWidth = new QLabel;
+    mLabelWidth->setText(i18n("Width"));
+
+
+
+    auto *layout = new QHBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(mModeComboBox);
+    layout->addWidget(mLabelWidth);
+    layout->addWidget(mLineEditWidth);
+    layout->addWidget(mLabelHeight);
+    layout->addWidget(mLineEditHeight);
+
+
+
+    connect(mModeComboBox, SIGNAL(currentIndexChanged(int)), SLOT(applySizeFilter()));
+    connect(mLineEditHeight, &QLineEdit::editingFinished, this,  &SizeFilterWidget::applySizeFilter);
+    connect(mLineEditWidth, &QLineEdit::editingFinished, this,  &SizeFilterWidget::applySizeFilter);
+
+    applySizeFilter();
+}
+
+SizeFilterWidget::~SizeFilterWidget()
+{
+    delete mFilter;
+}
+
+void SizeFilterWidget::applySizeFilter()
+{
+    QVariant data = mModeComboBox->itemData(mModeComboBox->currentIndex());
+    uint32_t width = 0;
+    uint32_t height = 0;
+
+    width = mLineEditWidth->text().toUInt();
+    height = mLineEditHeight->text().toUInt();
+
+    mFilter->setMode(SizeFilter::Mode(data.toInt()));
+    mFilter->setSizes(width, height);
+}
+
 /**
  * A container for all filter widgets. It features a close button on the right.
  */
@@ -287,6 +343,7 @@ FilterController::FilterController(QFrame *frame, SortedDirModel *dirModel)
 
     addAction(i18nc("@action:inmenu", "Filter by Tag"), SLOT(addFilterByTag()), QKeySequence());
 #endif
+    addAction(i18nc("@action:inmenu", "Filter by Size"), SLOT(addFilterBySize()), QKeySequence());
 }
 
 QList<QAction *> FilterController::actionList() const
@@ -315,6 +372,11 @@ void FilterController::addFilterByTag()
     addFilter(new TagFilterWidget(mDirModel));
 }
 #endif
+
+void FilterController::addFilterBySize()
+{
+    addFilter(new SizeFilterWidget(mDirModel));
+}
 
 void FilterController::slotFilterWidgetClosed()
 {
